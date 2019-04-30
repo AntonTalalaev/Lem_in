@@ -1,0 +1,96 @@
+#!/bin/bash
+
+DIR_PATH=tmp
+
+check()
+{
+	DIFF=0
+	TOTAL=0
+	TIME_SUM=0
+	DIFF_SUM=0
+	for param in "$@"
+	do
+		INFO=$(\time ../lem-in -ss < $param 2>&1)
+		STATUS=$(echo "$INFO" | head -n1)
+		TIME=$(echo "$INFO" | tail -n1)
+		NEED=$(cat $param | head -n2 | tail -n1 | awk '{print $NF}')
+		REAL=$(echo $TIME | awk '{print $1}')
+		TIME_SUM=$( echo "$REAL + $TIME_SUM" | bc -l )
+		DIFF_SUM=$(( $DIFF_SUM + $(( $NEED - $STATUS )) ))
+		echo "$param:"
+		echo "$STATUS : $NEED\t\ttime $REAL\t\t$(( $NEED - $STATUS ))"
+		if [[ $DIFF -gt $(( $NEED - $STATUS )) ]]
+		then
+			DIFF=$(( $NEED - $STATUS ))
+		fi
+		if (( $(echo "$TOTAL < $REAL" | bc -l) ));
+		then
+			TOTAL=$REAL
+		fi
+	done
+	echo
+	echo "\tDIFF\t\tTIME"
+	echo "MAX\t$DIFF\t\t$TOTAL"
+	printf "AVERAGE\t%.3f\t\t%.3f\n" $( echo "$DIFF_SUM / $#" | bc -l ) $( echo "$TIME_SUM / $#" | bc -l )
+}
+
+create()
+{
+	for ((i=0;i<$3;i++))
+	do
+		./generator --$1 > $DIR_PATH/$2.$i
+#		CONTENT=$( ./generator --$1 )
+#		echo "$CONTENT" > $DIR_PATH/$2.$i
+		sleep 1
+	done
+}
+
+remove()
+{
+	echo
+	read -p "Delete files?(Y/n) " arg
+
+	case "$arg" in
+		"Y"|"Yes") rm -f $1
+			;;
+		*)
+			;;
+	esac
+}
+if [ ! -d tmp ]
+then
+	mkdir tmp
+fi
+if [ ! -f ../lem-in ]
+then
+	make -C .. 1>/dev/null
+fi
+case $1 in
+	1) rm -f $DIR_PATH/one.*
+		create "flow-one" "one" "$2"
+		check $DIR_PATH/one.*
+		remove "$DIR_PATH/one.*"
+		;;
+	2) rm -f $DIR_PATH/ten.*
+		create "flow-ten" "ten" "$2"
+		check $DIR_PATH/ten.*
+		remove "$DIR_PATH/ten.*"
+		;;
+	3) rm -f $DIR_PATH/thousand.*
+		create "flow-thousand" "thousand" "$2"
+		check $DIR_PATH/thousand.*
+		remove "$DIR_PATH/thousand.*"
+		;;
+	4) rm -f $DIR_PATH/big.*
+		create "big" "big" "$2"
+		check $DIR_PATH/big.*
+		remove "$DIR_PATH/big.*"
+		;;
+	5) rm -f $DIR_PATH/sperpos.*
+		create "big-superposition" "superpos" "$2"
+		check $DIR_PATH/superpos.*
+		remove "$DIR_PATH/superpos.*"
+		;;
+	*) exit 1
+	;;
+esac

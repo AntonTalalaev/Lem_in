@@ -1,0 +1,30 @@
+#!/bin/bash
+
+DIFF=0
+TOTAL=0
+TIME_SUM=0
+DIFF_SUM=0
+for param in "$@"
+do
+	INFO=$(\time ../lem-in -ss < $param 2>&1)
+	STATUS=$(echo "$INFO" | head -n1)
+	TIME=$(echo "$INFO" | tail -n1)
+	NEED=$(cat $param | head -n2 | tail -n1 | awk '{print $NF}')
+	REAL=$(echo $TIME | awk '{print $1}')
+	TIME_SUM=$( echo "$REAL + $TIME_SUM" | bc -l )
+	DIFF_SUM=$(( $DIFF_SUM + $(( $NEED - $STATUS )) ))
+	echo "$param:"
+	echo "$STATUS : $NEED\t\ttime $REAL\t\t$(( $NEED - $STATUS ))"
+	if [[ $DIFF -gt $(( $NEED - $STATUS )) ]]
+	then
+		DIFF=$(( $NEED - $STATUS ))
+	fi
+	if (( $(echo "$TOTAL < $REAL" | bc -l) ));
+	then
+		TOTAL=$REAL
+	fi
+done
+echo
+echo "\tDIFF\t\tTIME"
+echo "MAX\t$DIFF\t\t$TOTAL"
+printf "AVERAGE\t%.3f\t\t%.3f\n" $( echo "$DIFF_SUM / $#" | bc -l ) $( echo "$TIME_SUM / $#" | bc -l )
